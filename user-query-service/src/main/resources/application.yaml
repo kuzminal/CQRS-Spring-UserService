@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: user-query-service
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      username: dbuser
+      password: dbpassword
+      database: user_query_db
+#  kafka:
+#    consumer:
+#      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+#      properties:
+#        spring:
+#          deserializer:
+#            value:
+#              delegate:
+#                class: org.springframework.kafka.support.serializer.JsonDeserializer
+server:
+  port: 8082

@@ -1,0 +1,14 @@
+spring:
+    application:
+        name: user-command-service
+    datasource:
+        url: jdbc:postgresql://localhost:5555/users
+        username: postgres
+        password: password
+        driver-class-name: org.postgresql.Driver
+    jpa:
+        hibernate:
+            ddl-auto: update
+        show-sql: true
+server:
+    port: 8081
