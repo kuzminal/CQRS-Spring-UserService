@@ -117,10 +117,10 @@ Kafka UI — `http://localhost:8888`, события публикуются в �
 | ✅ | Event-driven синхронизация через Kafka |
 | ✅ | REST API (create + get) |
 | ✅ | Docker Compose: PostgreSQL + Kafka + MongoDB + Kafka UI |
-| 🔜 | Transactional Outbox (надёжная публикация событий, см. ADR-0005) |
-| 🔜 | Валидация + доменные исключения + `@ControllerAdvice` (404/400) |
+| ✅ | Transactional Outbox (надёжная публикация событий, см. ADR-0005) |
+| ✅ | Валидация + доменные исключения + `@ControllerAdvice` (404/400) |
+| ✅ | Flyway-миграции (command-сервис) |
 | 🔜 | Юнит/интеграционные тесты |
-| 🔜 | Flyway-миграции (command-сервис) |
 | 🔜 | CI (GitHub Actions) |
 
 ## Лицензия
