@@ -2,9 +2,11 @@ package ru.kuzmin.userqueryservice.query;
 
 import org.springframework.stereotype.Service;
 import ru.kuzmin.userqueryservice.domain.UserReadRepository;
+import ru.kuzmin.userqueryservice.exception.UserNotFoundException;
 
 @Service
 public class UserQueryService {
+
     private final UserReadRepository userReadRepository;
 
     public UserQueryService(UserReadRepository userReadRepository) {
@@ -17,6 +19,6 @@ public class UserQueryService {
                         user.getId(),
                         user.getUsername(),
                         user.getEmail()))
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException(id));
     }
 }

@@ -1,14 +1,30 @@
 spring:
-    application:
-        name: user-command-service
-    datasource:
-        url: jdbc:postgresql://localhost:5555/users
-        username: postgres
-        password: password
-        driver-class-name: org.postgresql.Driver
-    jpa:
-        hibernate:
-            ddl-auto: update
-        show-sql: true
+  application:
+    name: user-command-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5555/users
+    username: postgres
+    password: password
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none          # схему создаёт Flyway
+    open-in-view: false
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+app:
+  kafka:
+    topic: user-events
+  outbox:
+    batch-size: 100
+    relay-delay-ms: 1000
+
 server:
-    port: 8081
+  port: 8081
