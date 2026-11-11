@@ -31,7 +31,7 @@ flowchart LR
     Client -->|"GET /api/users/{id}"| Qry["User Query Service<br/>(read, :8082)"]
 
     Cmd -->|"save"| PG[("PostgreSQL")]
-    Cmd -->|"UserCreatedEvent"| KF[("Kafka<br/>user-events")]
+    Cmd -->|"UserCreatedEvent"| KF@{ shape: das, label: "Kafka<br/>user-events" }
     KF -->|"consume"| Qry
     Qry -->|"read"| MG[("MongoDB")]
 ```
