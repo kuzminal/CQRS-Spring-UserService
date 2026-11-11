@@ -1,218 +1,128 @@
-# CQRS Microservices Project
+# CQRS — User Service
 
-Этот проект демонстрирует реализацию паттерна CQRS (Command Query Responsibility Segregation) с использованием двух отдельных микросервисов для операций записи и чтения.
+Проект демонстрирует паттерн **CQRS**: два независимых микросервиса для записи и чтения,
+связанных асинхронно через Kafka. Разные хранилища под разные задачи — PostgreSQL для команд,
+MongoDB для запросов.
 
-## 📋 Оглавление
+<p align="left">
+  <img src="https://img.shields.io/badge/Java-21-blue?logo=openjdk&logoColor=white" alt="Java 21">
+  <img src="https://img.shields.io/badge/Spring%20Boot-3.5-green?logo=springboot&logoColor=white" alt="Spring Boot 3.5">
+  <img src="https://img.shields.io/badge/Kafka-3.9-231F20?logo=apachekafka&logoColor=white" alt="Kafka 3.9">
+  <img src="https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
+  <img src="https://img.shields.io/badge/MongoDB-green?logo=mongodb&logoColor=white" alt="MongoDB">
+  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License MIT">
+</p>
 
-- [Архитектура](#архитектура)
-- [Технологии](#технологии)
-- [Структура проекта](#структура-проекта)
-- [Установка и запуск](#установка-и-запуск)
-- [API Endpoints](#api-endpoints)
-- [Примеры использования](#примеры-использования)
-- [Разработка](#разработка)
+## Зачем этот проект
 
-## 🏗️ Архитектура
+Референсный пример того, как разделить операции записи и чтения на два сервиса с
+событийной синхронизацией read-модели. Проект показывает:
 
-Проект состоит из двух независимых микросервисов:
+- **CQRS** — раздельные command/query сервисы с разными моделями данных;
+- **Event-driven синхронизацию** — read-модель обновляется через Kafka (eventual consistency);
+- **Polyglot persistence** — PostgreSQL для транзакций записи, MongoDB для документной read-модели;
+- **Развязку сервисов** — command-сервис ничего не знает о потребителях своих событий.
 
-### **User Command Service** (`user-command-service`)
-- **Порт**: 8081
-- **Назначение**: Обработка операций записи (CREATE, UPDATE, DELETE)
-- **База данных**: PostgreSQL (транзакционные данные)
-- **Коммуникация**: Публикация событий в Kafka
+## Архитектура
 
-### **User Query Service** (`user-query-service`)
-- **Порт**: 8082
-- **Назначение**: Обработка операций чтения (GET, SEARCH)
-- **База данных**: MongoDB (оптимизирована для запросов)
-- **Коммуникация**: Подписка на события из Kafka
+```mermaid
+flowchart LR
+    Client["Клиент"] -->|"POST /api/users"| Cmd["User Command Service<br/>(write, :8081)"]
+    Client -->|"GET /api/users/{id}"| Qry["User Query Service<br/>(read, :8082)"]
 
-### Поток данных:
-```
-Client → Command Service → PostgreSQL → Kafka → Query Service → MongoDB → Client
-```
-
-## 🛠️ Технологии
-
-- **Java 21**
-- **Spring Boot 3.x**
-- **Apache Kafka** - обмен событиями между сервисами
-- **PostgreSQL** - база данных для команд (запись)
-- **MongoDB** - база данных для запросов (чтение)
-- **Maven** - управление зависимостями
-- **Docker** - контейнеризация зависимостей
-
-## 📁 Структура проекта
-
-```
-cqrs-microservices/
-├── user-command-service/
-│   ├── src/
-│   │   └── main/
-│   │       ├── java/ru/kuzmin/usercommandservice/
-│   │       │   ├── api/              # REST контроллеры
-│   │       │   ├── command/          # Команды и обработчики
-│   │       │   ├── domain/           # Сущности и репозитории
-│   │       │   ├── event/            # События
-│   │       │   └── config/           # Конфигурации
-│   │       └── resources/
-│   │           └── application.yml
-│   └── pom.xml
-├── user-query-service/
-│   ├── src/
-│   │   └── main/
-│   │       ├── java/ru/kuzmin/userqueryservice/
-│   │       │   ├── api/              # REST контроллеры
-│   │       │   ├── query/            # Запросы и обработчики
-│   │       │   ├── domain/           # Модели для чтения
-│   │       │   ├── event/            # Обработчики событий
-│   │       │   └── config/           # Конфигурации
-│   │       └── resources/
-│   │           └── application.yml
-│   └── pom.xml
-└── docker-compose.yml
+    Cmd -->|"save"| PG[("PostgreSQL")]
+    Cmd -->|"UserCreatedEvent"| KF[("Kafka<br/>user-events")]
+    KF -->|"consume"| Qry
+    Qry -->|"read"| MG[("MongoDB")]
 ```
 
-## 🚀 Установка и запуск
+Поток данных: запись идёт в PostgreSQL, событие публикуется в Kafka, query-сервис
+обновляет read-модель в MongoDB. Согласованность между сервисами — **eventual**.
 
-### Запуск инфраструктуры
+### Структура проекта
+
+```
+├── user-command-service/     # запись (CREATE)
+│   └── ru.kuzmin.usercommandservice/
+│       ├── api/              # REST-контроллер
+│       ├── command/          # команды и обработчики
+│       ├── domain/           # сущность + репозиторий
+│       ├── event/            # события
+│       └── config/           # Kafka producer
+├── user-query-service/       # чтение (GET)
+│   └── ru.kuzmin.userqueryservice/
+│       ├── api/              # REST-контроллер
+│       ├── query/            # запросы и обработчики
+│       ├── domain/           # read-модель + репозиторий
+│       ├── event/            # Kafka consumer
+│       └── config/           # Kafka consumer
+└── docker-compose.yml        # PostgreSQL + Kafka + MongoDB + Kafka UI
+```
+
+## Технологический стек
+
+| Сервис | Стек |
+|--------|------|
+| Command (write) | Spring Boot 3.5, Spring Web, Spring Data JPA, Spring Kafka, **PostgreSQL 17** |
+| Query (read) | Spring Boot 3.5, Spring Web, Spring Data MongoDB, Spring Kafka, **MongoDB** |
+| Инфраструктура | Apache Kafka 3.9 (KRaft), Docker Compose, Kafka UI |
+
+## API
+
+| Сервис | Метод | Эндпоинт | Описание |
+|--------|-------|----------|----------|
+| Command (:8081) | `POST` | `/api/users` | Создать пользователя, вернуть `id` |
+| Query (:8082) | `GET` | `/api/users/{id}` | Получить пользователя по `id` |
 
 ```bash
-# Запуск PostgreSQL, MongoDB и Kafka
-docker-compose up -d
+# Создание (command-сервис)
+curl -X POST http://localhost:8081/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"username": "john_doe", "email": "john@example.com"}'
+# → "a1b2c3d4-..."
+
+# Чтение (query-сервис), после задержки на eventual consistency
+curl http://localhost:8082/api/users/a1b2c3d4-...
 ```
 
-Проверьте, что все контейнеры запущены:
-```bash
-docker-compose ps
-```
+## Запуск
 
-### Проверка работоспособности
-
-После запуска сервисы будут доступны:
-- Command Service: http://localhost:8081
-- Query Service: http://localhost:8082
-
-## 📡 API Endpoints
-
-### Command Service (порт 8081)
-
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| POST | `/api/users` | Создание нового пользователя |
-
-**Пример запроса:**
-```bash
-    curl -X POST http://localhost:8081/api/users \
-      -H "Content-Type: application/json" \
-      -d '{
-        "username": "john_doe",
-        "email": "john@example.com"
-      }'
-```
-
-**Пример ответа:**
-```json
-"a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-```
-
-### Query Service (порт 8082)
-
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| GET | `/api/users/{id}` | Получение пользователя по ID |
-
-**Пример запроса:**
-```bash
-  curl http://localhost:8082/api/users/a1b2c3d4-e5f6-7890-abcd-ef1234567890
-```
-
-**Пример ответа:**
-```json
-{
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "username": "john_doe",
-  "email": "john@example.com"
-}
-```
-
-## 💡 Примеры использования
-
-### Полный цикл создания и чтения пользователя
+Требования: Java 21, Maven, Docker.
 
 ```bash
-    # 1. Создание пользователя через Command Service
-    USER_ID=$(curl -s -X POST http://localhost:8081/api/users \
-      -H "Content-Type: application/json" \
-      -d '{"username": "alice", "email": "alice@example.com"}' | tr -d '"')
-    
-    echo "Created user with ID: $USER_ID"
-    
-    # 2. Небольшая задержка для обработки события (eventual consistency)
-    sleep 2
-    
-    # 3. Чтение пользователя через Query Service
-    curl http://localhost:8082/api/users/$USER_ID
+docker-compose up -d          # PostgreSQL + Kafka + MongoDB + Kafka UI
+
+# в двух терминалах:
+cd user-command-service && mvn spring-boot:run   # :8081
+cd user-query-service && mvn spring-boot:run     # :8082
 ```
 
-### Проверка событий в Kafka
+Kafka UI — `http://localhost:8888`, события публикуются в топик `user-events`.
 
-```bash
-# Просмотр топиков Kafka
-    docker exec -it kafka kafka-topics.sh --list --bootstrap-server localhost:9092
-    
-    # Просмотр сообщений в топике user-events
-    docker exec -it kafka kafka-console-consumer.sh \
-      --topic user-events \
-      --from-beginning \
-      --bootstrap-server localhost:9092
-```
+## Архитектурные решения (ADR)
 
-## 🔧 Разработка
+Ключевые решения с обоснованием и trade-off'ами — в [`docs/adr/`](docs/adr/README.md):
 
-### Добавление новых команд
+- [0001 — CQRS: разделение команд и запросов](docs/adr/0001-cqrs-command-query-separation.md)
+- [0002 — Синхронизация read-модели через Kafka](docs/adr/0002-event-driven-sync-kafka.md)
+- [0003 — Разные хранилища: PostgreSQL + MongoDB](docs/adr/0003-polyglot-persistence-postgres-mongo.md)
+- [0004 — Дублирование контракта события между сервисами](docs/adr/0004-event-contract-duplication.md)
+- [0005 — Transactional Outbox для надёжной публикации событий](docs/adr/0005-transactional-outbox.md)
 
-1. **В Command Service:**
-```java
-// 1. Создайте команду
-public class UpdateUserCommand {
-    private String id;
-    private String username;
-    // getters/setters
-}
+## Текущее состояние и Roadmap
 
-// 2. Добавьте метод в сервис
-public String updateUser(UpdateUserCommand command) {
-    // бизнес-логика
-    // публикация события UserUpdatedEvent
-}
+| Статус | Пункт |
+|--------|-------|
+| ✅ | CQRS: два сервиса с раздельными БД |
+| ✅ | Event-driven синхронизация через Kafka |
+| ✅ | REST API (create + get) |
+| ✅ | Docker Compose: PostgreSQL + Kafka + MongoDB + Kafka UI |
+| 🔜 | Transactional Outbox (надёжная публикация событий, см. ADR-0005) |
+| 🔜 | Валидация + доменные исключения + `@ControllerAdvice` (404/400) |
+| 🔜 | Юнит/интеграционные тесты |
+| 🔜 | Flyway-миграции (command-сервис) |
+| 🔜 | CI (GitHub Actions) |
 
-// 3. Добавьте endpoint в контроллер
-@PutMapping("/{id}")
-public String updateUser(@PathVariable String id, @RequestBody UpdateUserRequest request) {
-    // вызов сервиса
-}
-```
+## Лицензия
 
-2. **В Query Service:**
-```java
-// 1. Обработайте событие
-@KafkaListener(topics = "user-events")
-public void handleUserUpdatedEvent(UserUpdatedEvent event) {
-    // обновление данных в MongoDB
-}
-```
-
-### Проверка соединений
-
-```bash
-    # Проверка PostgreSQL
-    psql -h localhost -p 5432 -U postgres -d user_command_db
-    
-    # Проверка MongoDB
-    mongosh mongodb://localhost:27017/user_query_db
-    
-    # Проверка Kafka
-    docker exec -it kafka kafka-topics.sh --list --bootstrap-server localhost:9092
-```
+[MIT](LICENSE)
