@@ -9,7 +9,7 @@ MongoDB для запросов.
   <img src="https://img.shields.io/badge/Spring%20Boot-3.5-green?logo=springboot&logoColor=white" alt="Spring Boot 3.5">
   <img src="https://img.shields.io/badge/Kafka-3.9-231F20?logo=apachekafka&logoColor=white" alt="Kafka 3.9">
   <img src="https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
-  <img src="https://img.shields.io/badge/MongoDB-green?logo=mongodb&logoColor=white" alt="MongoDB">
+  <img src="https://img.shields.io/badge/MongoDB-6-green?logo=mongodb&logoColor=white" alt="MongoDB">
   <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License MIT">
 </p>
 
